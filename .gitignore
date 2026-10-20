@@ -1,0 +1,33 @@
+# --- Secrets and personal data: never commit ---
+# The real config holds the Transmission RPC password.
+config.toml
+# API device-token hashes and the audit log (device names, IPs, Tailscale users).
+api_devices.json
+api_audit.log*
+api.log*
+# State database and logs, if ever pointed inside the repo.
+*.db
+*.db-wal
+*.db-shm
+*.log
+# Torrent and magnet drops (may name what you download).
+*.torrent
+*.magnet
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# --- Leftovers from interrupted writes ---
+*.part
+*.tmp
+
+# --- Editors and OS ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store

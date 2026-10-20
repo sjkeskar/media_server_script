@@ -1,0 +1,117 @@
+# Copy to config.toml and edit. Paths use single quotes so backslashes
+# are taken literally -- no doubling needed.
+#
+# config.toml holds your Transmission password and is git-ignored: never
+# commit it. Full walkthrough: SETUP_GUIDE.md.
+
+[paths]
+watch_root    = 'C:\torrents\watch'
+temp_download = 'D:\torrents\incomplete'
+library_root  = 'D:\Media'
+database      = 'C:\torrents\torrentfiler.db'
+
+[transmission]
+host     = "127.0.0.1"
+port     = 9091
+path     = "/transmission/rpc"
+username = "changeme"
+password = "changeme"
+timeout  = 15
+
+[limits]
+# Script-side cap on how many torrents it will hand to Transmission at once.
+# Transmission's own download-queue-size should be set to the same value.
+max_active = 2
+# Per-torrent caps applied at add time. 0 = no per-torrent limit
+# (Transmission's global speed limit still applies).
+per_torrent_download_kbps = 0
+per_torrent_peer_limit    = 20
+
+[service]
+poll_interval_seconds = 10
+# How many consecutive polls a .torrent must have an unchanged size and
+# mtime before it is considered fully written and safe to parse.
+stability_checks = 2
+# Windows: below_normal | normal. Also sets low I/O priority where supported.
+process_priority = "below_normal"
+log_level = "INFO"
+# Retry backoff for transient failures (Transmission down, file locked).
+retry_base_seconds = 5
+retry_max_seconds  = 300
+max_attempts       = 8
+# A magnet link whose metadata (file list) hasn't arrived from peers after
+# this long is removed from Transmission and quarantined in failed/.
+metadata_timeout_minutes = 30
+
+[filing]
+# Each completed download is classified by its files, and its category's
+# rules below decide where it goes and how long it seeds:
+#   video  any video file             -> copy video, subtitles, covers
+#   music  audio, no video            -> copy audio, cover art, lyrics, .cue
+#   iso    .iso/.img, no video/audio  -> move everything
+#   other  anything else              -> copy everything
+#
+# mode "copy": the torrent keeps seeding from temp_download until seed_ratio
+#   OR seed_hours is reached (0 = that limit unused), then it is removed
+#   from Transmission and its temp copy deleted. Copies are never touched.
+# mode "move": removed from Transmission at once and moved. No seeding, no
+#   duplicate.
+# root defaults: video -> library_root; music -> <library parent>\jellyfin-music;
+#   iso and other -> <library parent>\download.
+
+# For every category: if nothing is uploaded for this fraction of its
+# seed_hours (e.g. 0.3 x 240h = 72h), seeding ends early. 0 = off.
+stall_fraction = 0.3
+# Free space to keep on the download and destination volumes. If a copy would
+# not fit, or the download volume drops below this, ALL seeding torrents stop
+# and their temp copies (duplicates of verified copies) are deleted to make
+# room. The copy that did not fit then retries.
+min_free_gb = 5
+
+[filing.video]
+mode       = "copy"
+seed_ratio = 1.0
+seed_hours = 240        # 10 days
+
+[filing.music]
+root       = 'D:\Music'
+mode       = "copy"
+seed_ratio = 0          # time only
+seed_hours = 3
+
+[filing.iso]
+root = 'D:\Downloads'
+mode = "move"
+
+[filing.other]
+root       = 'D:\Downloads'
+mode       = "copy"
+seed_ratio = 0.5
+seed_hours = 24
+
+[api]
+# Add-torrent REST API for laptops, phones and tablets. Runs as its own
+# service (--serve-api); see SETUP_GUIDE.md steps 12 and 13.
+#
+# Home network: token only. Bound to this PC's LAN address -- NOT 0.0.0.0 --
+# so devices on Tailscale can't reach it directly and skip the identity
+# check. The firewall rule limits it to the home subnet. "" turns it off.
+host = "192.168.1.10"
+port = 8765
+max_torrent_mb = 10
+# Device tokens (hashes only) and the audit log. Default: next to the database.
+# devices_file = 'C:\torrents\api_devices.json'
+# audit_log    = 'C:\torrents\api_audit.log'
+
+# From anywhere, via Tailscale: a second listener on 127.0.0.1 only, which
+# just `tailscale serve` on this PC can reach. It requires the caller's
+# signed-in Tailscale identity AND a device token. 0 turns it off.
+# NEVER expose it with `tailscale funnel` or a router port forward.
+tailnet_port = 8766
+require_tailnet_identity = true
+
+# Lockout, on both listeners: this many failed authentications from one
+# address within the window block it for lockout_minutes.
+lockout_failures       = 5
+lockout_window_minutes = 10
+lockout_minutes        = 15
